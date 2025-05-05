@@ -1,11 +1,15 @@
 from textnode import *
 import os
 import shutil
+import sys
 from markdown_to_html_node import markdown_to_html_node
 
-ROOT_PATH = "/home/masonjones/projects/python/Static-Site-Generator"
+try:
+    basepath = sys.argv[1]
+except Exception:
+    basepath = "/"
 
-def remove_public_files(path):
+def remove_doc_files(path):
     in_dir = os.listdir(path)
     for file in in_dir:
         current_file = path + "/" + file
@@ -13,21 +17,21 @@ def remove_public_files(path):
             os.remove(current_file)
             print(f"deleting '{current_file}'")
         elif os.path.exists(current_file):
-            remove_public_files(current_file)
+            remove_doc_files(current_file)
             shutil.rmtree(current_file)
 
-def copy_static_files(static_path, public_path):
+def copy_static_files(static_path, doc_path):
     #shutil.copy(src, dst)
     in_dir = os.listdir(static_path)
     for file in in_dir:
         current_file = static_path + "/" + file
         if os.path.isfile(current_file):
-            shutil.copy(current_file, public_path)
-            print(f"copying '{current_file}' to '{public_path}'")
+            shutil.copy(current_file, doc_path)
+            print(f"copying '{current_file}' to '{doc_path}'")
         elif os.path.exists(current_file):
-            new_public_dir = public_path + "/" + file
-            os.mkdir(new_public_dir)
-            copy_static_files(current_file, new_public_dir)
+            new_doc_dir = doc_path + "/" + file
+            os.mkdir(new_doc_dir)
+            copy_static_files(current_file, new_doc_dir)
 
 
 def extract_title(markdown):
@@ -43,7 +47,10 @@ def extract_title(markdown):
     raise ValueError("markdown document must have an h1 tag")
 
 def generate_page(from_path, template_path, dest_path):
+    dest_path = dest_path.replace("md", "html")
     print(f"Generating page from {from_path} to {dest_path} using {template_path}")
+
+    global basepath
     with open(from_path, "r") as markdown_file:
         markdown = markdown_file.read()
     with open(template_path, "r") as template_file:
@@ -54,8 +61,9 @@ def generate_page(from_path, template_path, dest_path):
 
     template = template.replace("{{ Title }}", html_title)
     template = template.replace("{{ Content }}", page_html)
+    template = template.replace("href=\"/", f"href=\"{basepath}")
+    template = template.replace("src=\"/", f"src=\"{basepath}")
 
-    dest_path = dest_path.replace("md", "html")
     with open(dest_path, "w") as dest_file:
         dest_file.write(template)
 
@@ -71,15 +79,14 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
             generate_pages_recursive(current_path, template_path, new_dest_dir)
 
 def main():
-    global ROOT_PATH
-    public_dir = ROOT_PATH + "/public"
-    static_dir = ROOT_PATH + "/static"
-    content_dir = ROOT_PATH + "/content"
-    template_file = ROOT_PATH + "/template.html"
+    doc_dir = "docs"
+    static_dir = "static"
+    content_dir = "content"
+    template_file = "template.html"
 
-    remove_public_files(public_dir)
-    copy_static_files(static_dir, public_dir)
-    generate_pages_recursive(content_dir, template_file, public_dir)
+    remove_doc_files(doc_dir)
+    copy_static_files(static_dir, doc_dir)
+    generate_pages_recursive(content_dir, template_file, doc_dir)
 
 
 if __name__ == "__main__":
