@@ -1,6 +1,21 @@
 from textnode import *
 import re
 
+STOP_SCANNING = "stop scanning"
+
+def get_delimiter_indices(text, delimiter):
+    global STOP_SCANNING
+    try:
+        first_delimiter_index = text.index(delimiter)
+    except ValueError:
+        return STOP_SCANNING, None
+        
+    try:
+        second_delimiter_index = text.index(delimiter, first_delimiter_index + 1) + len(delimiter)
+    except ValueError:
+        raise Exception("invalid markdown syntax")
+    return first_delimiter_index, second_delimiter_index
+
 def split_nodes_delimiter(old_nodes, delimiter, text_type):
     nodes = old_nodes.copy()
     new_nodes = []
@@ -10,23 +25,18 @@ def split_nodes_delimiter(old_nodes, delimiter, text_type):
         if node.text_type != TextType.TEXT or not delimiter in text:
             new_nodes.append(node)
             continue
+        
+        global STOP_SCANNING
+        while True:
+            first_delimiter_index, second_delimiter_index = get_delimiter_indices(text, delimiter)
+            if first_delimiter_index == STOP_SCANNING:
+                new_nodes.append(TextNode(text, TextType.TEXT))
+                break
+                
+            new_nodes.append(TextNode(text[:first_delimiter_index], TextType.TEXT))
+            new_nodes.append(TextNode(text[first_delimiter_index+len(delimiter):second_delimiter_index-len(delimiter)], text_type))
+            text = text[second_delimiter_index:]
 
-        
-        try:
-            first_delimiter_index = text.index(delimiter)
-        except ValueError:
-            new_nodes.append(node)
-            continue
-        
-        new_nodes.append(TextNode(text[:first_delimiter_index], TextType.TEXT)) 
-
-        try:
-            second_delimiter_index = text.index(delimiter, first_delimiter_index + 1) + len(delimiter)
-        except ValueError:
-            raise Exception("invalid markdown syntax")
-        
-        new_nodes.append(TextNode(text[first_delimiter_index+len(delimiter):second_delimiter_index-len(delimiter)], text_type))
-        new_nodes.append(TextNode(text[second_delimiter_index:], TextType.TEXT)) 
 
     return new_nodes
 
